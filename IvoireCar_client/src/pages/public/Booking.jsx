@@ -3,8 +3,11 @@ import { X, Calendar, CheckCircle, Printer, Loader2, ArrowRight } from 'lucide-r
 import { Link } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import api from '../../services/api';
+import { useAuth } from '../../context/AuthContext'; // Importation du contexte d'authentification
 
 const DirectBookingModal = ({ isOpen = true, onClose }) => {
+  const { user } = useAuth(); // Récupération de l'utilisateur connecté
+
   // Données chargées depuis l'API
   const [companies, setCompanies] = useState([]);
   const [stations, setStations] = useState([]);
@@ -18,7 +21,7 @@ const DirectBookingModal = ({ isOpen = true, onClose }) => {
   const [selectedDeparture, setSelectedDeparture] = useState('');
   const [bookingDate, setBookingDate] = useState(new Date().toISOString().split('T')[0]);
   
-  // Infos passager & Paiement
+  // Infos passager & Paiement (pré-remplies si l'utilisateur est connecté)
   const [passengerName, setPassengerName] = useState('');
   const [passengerPhone, setPassengerPhone] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('WAVE');
@@ -31,6 +34,14 @@ const DirectBookingModal = ({ isOpen = true, onClose }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [receipt, setReceipt] = useState(null);
   const [error, setError] = useState(null);
+
+  // Pré-remplir automatiquement les champs passager lorsque l'utilisateur est chargé ou connecté
+  useEffect(() => {
+    if (user) {
+      setPassengerName(user.name || user.nom || '');
+      setPassengerPhone(user.phone || user.telephone || '');
+    }
+  }, [user]);
 
   // 1. Charger la liste des compagnies au chargement
   useEffect(() => {
@@ -90,7 +101,6 @@ const DirectBookingModal = ({ isOpen = true, onClose }) => {
       setLoadingPrice(true);
       setError(null);
       try {
-        // Apport : Appel à la route backend de recherche de ligne et calcul de prix d'escale
         const resRoute = await api.get('api/company/routes/search', {
           params: {
             company_id: selectedCompany,
@@ -106,7 +116,6 @@ const DirectBookingModal = ({ isOpen = true, onClose }) => {
         setPrice(routePrice);
         setCurrentRouteId(routeId);
 
-        // Récupération des départs prévus pour la ligne et la gare choisie
         const resDeps = await api.get('api/company/schedule-templates', {
           params: {
             company_id: selectedCompany,
@@ -141,13 +150,11 @@ const DirectBookingModal = ({ isOpen = true, onClose }) => {
     fetchRouteAndDepartures();
   }, [selectedCompany, departureStation, destinationStation]);
 
-  // Récupérer le nom de la gare par son ID
   const getStationName = (id) => {
     const st = stations.find((s) => String(s.id) === String(id));
     return st ? st.name : '—';
   };
 
-  // Récupérer le libellé formaté du départ sélectionné pour le reçu
   const getSelectedDepartureLabel = () => {
     const dep = departures.find((d) => String(d.id) === String(selectedDeparture));
     if (dep) {
@@ -156,7 +163,6 @@ const DirectBookingModal = ({ isOpen = true, onClose }) => {
     return '05h30';
   };
 
-  // Soumission et Réservation
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!currentRouteId || price <= 0) {
@@ -184,7 +190,6 @@ const DirectBookingModal = ({ isOpen = true, onClose }) => {
       const res = await api.post('api/bookings', payload);
       const data = res.data?.data || res.data;
       
-      // Construire l'objet reçu avec le code QR
       setReceipt({
         ticketNumber: data?.ticket_number || `TKT-${Math.floor(100000 + Math.random() * 900000)}`,
         companyName: companies.find(c => String(c.id) === String(selectedCompany))?.name || 'Compagnie Transport',
@@ -216,11 +221,9 @@ const DirectBookingModal = ({ isOpen = true, onClose }) => {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-100 transition-all">
         
-        {/* En-tête Modale */}
         <div className="p-5 pb-3 flex justify-between items-start relative">
-          
           <Link  
-          to="/"
+            to="/"
             className="absolute right-5 top-5 text-slate-400 hover:text-slate-600 transition-colors"
           >
             <X size={20} />
@@ -240,9 +243,7 @@ const DirectBookingModal = ({ isOpen = true, onClose }) => {
           )}
         </div>
 
-        {/* CONTENU DE LA MODALE */}
         {receipt ? (
-          /* VUE REÇU ET CODE QR */
           <div className="p-6 pt-2 text-center space-y-5">
             <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
               <CheckCircle size={28} />
@@ -253,14 +254,12 @@ const DirectBookingModal = ({ isOpen = true, onClose }) => {
               <p className="text-xs text-slate-500 mt-0.5">Billet N° <span className="font-bold text-slate-800">{receipt.ticketNumber}</span></p>
             </div>
 
-            {/* Carte du Reçu */}
             <div id="receipt-print" className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-left space-y-3 relative">
               <div className="flex justify-between items-start border-b border-slate-200/80 pb-2">
                 <div>
                   <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Compagnie</p>
                   <p className="text-xs font-bold text-slate-800">{receipt.companyName}</p>
                 </div>
-                {/* Génération du Code QR */}
                 <div className="bg-white p-1 rounded-lg border border-slate-200 shadow-2xs">
                   <QRCodeSVG value={receipt.qrCodeValue} size={64} />
                 </div>
@@ -308,10 +307,8 @@ const DirectBookingModal = ({ isOpen = true, onClose }) => {
             </div>
           </div>
         ) : (
-          /* FORMULAIRE DE RÉSERVATION */
           <form onSubmit={handleSubmit} className="p-6 pt-2 space-y-4">
             
-            {/* Ligne 1 : Compagnie & Départ Choisis */}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
@@ -355,7 +352,6 @@ const DirectBookingModal = ({ isOpen = true, onClose }) => {
               </div>
             </div>
 
-            {/* Ligne 2 : Gare de départ & Destination */}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
@@ -398,7 +394,6 @@ const DirectBookingModal = ({ isOpen = true, onClose }) => {
               </div>
             </div>
 
-            {/* Ligne 3 : Date de voyage */}
             <div>
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
                 Date de voyage
@@ -412,7 +407,6 @@ const DirectBookingModal = ({ isOpen = true, onClose }) => {
               />
             </div>
 
-            {/* Bloc Tarif du Billet */}
             <div className="bg-slate-50/80 border border-slate-100 rounded-2xl p-3.5 text-center my-2">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
                 Tarif du Billet
@@ -426,7 +420,6 @@ const DirectBookingModal = ({ isOpen = true, onClose }) => {
               </p>
             </div>
 
-            {/* Ligne 4 : Nom Complet */}
             <div>
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
                 Nom complet du passager
@@ -441,7 +434,6 @@ const DirectBookingModal = ({ isOpen = true, onClose }) => {
               />
             </div>
 
-            {/* Ligne 5 : Numéro Mobile Money */}
             <div>
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
                 Numéro Mobile Money (SMS Billet)
@@ -456,7 +448,6 @@ const DirectBookingModal = ({ isOpen = true, onClose }) => {
               />
             </div>
 
-            {/* Ligne 6 : Moyen de Paiement */}
             <div>
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
                 Moyen de paiement
@@ -483,7 +474,6 @@ const DirectBookingModal = ({ isOpen = true, onClose }) => {
               <p className="text-xs text-rose-600 font-semibold text-center">{error}</p>
             )}
 
-            {/* Bouton Valider */}
             <button
               type="submit"
               disabled={isSubmitting || price <= 0}

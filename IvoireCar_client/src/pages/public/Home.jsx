@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import Navbar from '../../components/Navbar';
 import ConnectNavbar from '../../components/ConnectNavbar';
 import Footer from '../../components/Footer';
 import { 
@@ -709,7 +708,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans selection:bg-orange-500 selection:text-white">
-      <Navbar />
+   
       <ConnectNavbar />
 
       <main>
