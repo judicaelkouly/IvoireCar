@@ -73,7 +73,7 @@ export default function App() {
 
 
           {/* Espace Company Admin (Protégé) */}
-          <Route element={<ProtectedRoute allowedRoles={['company_admin']} />}>
+          <Route element={<ProtectedRoute allowedRoles={['company_admin', 'station_manager', 'driver', 'cashier']} />}>
             <Route path="/company" element={<CompanyDashboard />} />
             <Route path="/company/add-personnel" element={<AddPersonnel />} />
             <Route path="/company/update-personnel/:id" element={<UpdatePersonnel />} />

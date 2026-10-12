@@ -1,18 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { X, Package, User, MapPin, Phone, CreditCard, Loader2, CheckCircle, Printer, Calculator } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 
-const SendParcelModal = ({ isOpen = true, onClose }) => {
+const SendParcelModal = ({ isOpen = true }) => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
   // Données dynamiques
   const [companies, setCompanies] = useState([]);
   const [stations, setStations] = useState([]);
 
-  // Formulaire Expéditeur
+  // Formulaire Expéditeur (pré-rempli si connecté)
   const [senderName, setSenderName] = useState('');
   const [senderPhone, setSenderPhone] = useState('');
 
-  // Formulaire Trajet & Compagnie
+  // Formulaire Trajet & Compagnie (valeurs par défaut vides)
   const [selectedCompany, setSelectedCompany] = useState('');
   const [departureStation, setDepartureStation] = useState('');
   const [destinationStation, setDestinationStation] = useState('');
@@ -33,6 +38,14 @@ const SendParcelModal = ({ isOpen = true, onClose }) => {
   const [receipt, setReceipt] = useState(null);
   const [error, setError] = useState(null);
 
+  // Pré-remplir les infos de l'expéditeur si l'utilisateur est connecté
+  useEffect(() => {
+    if (user) {
+      setSenderName(user.name || user.nom || '');
+      setSenderPhone(user.phone || user.telephone || '');
+    }
+  }, [user]);
+
   // Calcul du coût d'expédition (10% de la valeur estimée)
   const shippingCost = estimatedValue && !isNaN(estimatedValue) 
     ? Math.round(parseFloat(estimatedValue) * 0.10) 
@@ -47,7 +60,6 @@ const SendParcelModal = ({ isOpen = true, onClose }) => {
         const res = await api.get('api/companies');
         const data = res.data?.data || res.data || [];
         setCompanies(data);
-        if (data.length > 0) setSelectedCompany(data[0].id);
       } catch (err) {
         console.error('Erreur chargement compagnies:', err);
       } finally {
@@ -57,9 +69,14 @@ const SendParcelModal = ({ isOpen = true, onClose }) => {
     fetchCompanies();
   }, [isOpen]);
 
-  // Charger les gares de la compagnie
+  // Charger les gares de la compagnie sélectionnée
   useEffect(() => {
-    if (!selectedCompany) return;
+    if (!selectedCompany) {
+      setStations([]);
+      setDepartureStation('');
+      setDestinationStation('');
+      return;
+    }
     const fetchCompanyStations = async () => {
       setLoadingStations(true);
       setDepartureStation('');
@@ -68,10 +85,6 @@ const SendParcelModal = ({ isOpen = true, onClose }) => {
         const res = await api.get(`api/companies/${selectedCompany}/stations`);
         const data = res.data?.data || res.data || [];
         setStations(data);
-        if (data.length > 0) {
-          setDepartureStation(data[0].id);
-          if (data.length > 1) setDestinationStation(data[1].id);
-        }
       } catch (err) {
         console.error('Erreur chargement gares:', err);
       } finally {
@@ -88,26 +101,38 @@ const SendParcelModal = ({ isOpen = true, onClose }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Vérification de l'authentification avant la soumission
+    if (!user) {
+      setError("Vous devez être connecté pour expédier un colis. Redirection vers la connexion...");
+      setTimeout(() => navigate('/login'), 1500);
+      return;
+    }
+
+    if (!selectedCompany) {
+      setError("Veuillez sélectionner une compagnie.");
+      return;
+    }
+
     if (!departureStation || !destinationStation || departureStation === destinationStation) {
-      setError("Veuillez sélectionner une gare de départ et d'arrivée différentes.");
+      setError("Veuillez sélectionner une gare de départ et d'arrivée valides et différentes.");
       return;
     }
 
     setIsSubmitting(true);
     setError(null);
 
-    // Mappage des clés du payload pour correspondre aux règles de validation Laravel
     const payload = {
       company_id: selectedCompany,
       departure_station_id: departureStation,
-      arrival_station_id: destinationStation, // <-- Remplacé destination_station_id par arrival_station_id
+      arrival_station_id: destinationStation,
       sender_name: senderName,
       sender_phone: senderPhone,
       estimated_value: estimatedValue,
       shipping_cost: shippingCost,
       description: description,
-      recipient_name: receiverName,            // <-- Si votre API attend recipient_name au lieu de receiver_name
-      recipient_phone: receiverPhone,          // <-- Si votre API attend recipient_phone au lieu de receiver_phone
+      recipient_name: receiverName,
+      recipient_phone: receiverPhone,
       payment_method: paymentMethod,
     };
 
@@ -136,7 +161,12 @@ const SendParcelModal = ({ isOpen = true, onClose }) => {
       });
     } catch (err) {
       console.error('Erreur envoi colis:', err);
-      setError(err.response?.data?.message || "Échec de l'enregistrement du colis.");
+      if (err.response && [401, 419].includes(err.response.status)) {
+        setError("Session expirée ou non authentifiée. Redirection vers la connexion...");
+        setTimeout(() => navigate('/login'), 1500);
+      } else {
+        setError(err.response?.data?.message || "Échec de l'enregistrement du colis.");
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -148,15 +178,13 @@ const SendParcelModal = ({ isOpen = true, onClose }) => {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden border border-slate-100 transition-all my-8">
         
-        {/* En-tête Modale (Charte Orange/Orange-600) */}
+        {/* En-tête Modale */}
         <div className="p-6 bg-gradient-to-r from-orange-600 to-amber-500 text-white relative">
-          <button 
-            onClick={onClose}
-            type="button"
+          <Link to="/" 
             className="absolute right-5 top-5 text-white/80 hover:text-white bg-white/10 hover:bg-white/20 p-1.5 rounded-full transition-colors"
           >
             <X size={20} />
-          </button>
+          </Link>
 
           {!receipt && (
             <div className="flex items-center gap-3">
@@ -173,7 +201,6 @@ const SendParcelModal = ({ isOpen = true, onClose }) => {
 
         {/* CONTENU */}
         {receipt ? (
-          /* VUE BORDEREAU D'EXPÉDITION ET REÇU */
           <div className="p-6 text-center space-y-5">
             <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
               <CheckCircle size={28} />
@@ -184,7 +211,6 @@ const SendParcelModal = ({ isOpen = true, onClose }) => {
               <p className="text-xs text-slate-500 mt-0.5">Colis N° <span className="font-bold text-slate-800">{receipt.trackingNumber}</span></p>
             </div>
 
-            {/* Carte du Reçu */}
             <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-left space-y-3 relative">
               <div className="flex justify-between items-start border-b border-slate-200/80 pb-2">
                 <div>
@@ -244,7 +270,6 @@ const SendParcelModal = ({ isOpen = true, onClose }) => {
             </div>
           </div>
         ) : (
-          /* FORMULAIRE D'EXPÉDITION */
           <form onSubmit={handleSubmit} className="p-6 space-y-5">
             
             {/* SECTION 1: EXPÉDITEUR */}
@@ -299,8 +324,9 @@ const SendParcelModal = ({ isOpen = true, onClose }) => {
                     onChange={(e) => setSelectedCompany(e.target.value)}
                     className="w-full text-xs font-semibold p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-orange-500 outline-none"
                   >
+                    <option value="">Sélectionnez votre compagnie</option>
                     {loadingCompanies ? (
-                      <option>Chargement...</option>
+                      <option disabled>Chargement...</option>
                     ) : (
                       companies.map((c) => (
                         <option key={c.id} value={c.id}>{c.name}</option>
@@ -315,11 +341,12 @@ const SendParcelModal = ({ isOpen = true, onClose }) => {
                   <select
                     value={departureStation}
                     onChange={(e) => setDepartureStation(e.target.value)}
-                    disabled={loadingStations}
+                    disabled={!selectedCompany || loadingStations}
                     className="w-full text-xs font-semibold p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-orange-500 outline-none disabled:opacity-50"
                   >
+                    <option value="">Sélectionnez la gare de départ</option>
                     {loadingStations ? (
-                      <option>Chargement...</option>
+                      <option disabled>Chargement...</option>
                     ) : (
                       stations.map((st) => (
                         <option key={st.id} value={st.id}>{st.name}</option>
@@ -334,11 +361,12 @@ const SendParcelModal = ({ isOpen = true, onClose }) => {
                   <select
                     value={destinationStation}
                     onChange={(e) => setDestinationStation(e.target.value)}
-                    disabled={loadingStations}
+                    disabled={!selectedCompany || loadingStations}
                     className="w-full text-xs font-semibold p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-orange-500 outline-none disabled:opacity-50"
                   >
+                    <option value="">Sélectionnez la gare d'arrivée</option>
                     {loadingStations ? (
-                      <option>Chargement...</option>
+                      <option disabled>Chargement...</option>
                     ) : (
                       stations.map((st) => (
                         <option key={st.id} value={st.id}>{st.name}</option>
@@ -371,7 +399,6 @@ const SendParcelModal = ({ isOpen = true, onClose }) => {
                   />
                 </div>
                 
-                {/* Champ Coût d'expédition calculé dynamiquement */}
                 <div>
                   <label className="text-[10px] font-bold text-orange-600 flex items-center gap-1 mb-1">
                     <Calculator size={12} /> Frais d'envoi (10%)
@@ -433,7 +460,6 @@ const SendParcelModal = ({ isOpen = true, onClose }) => {
                 </div>
               </div>
 
-              {/* Choix du mode de paiement */}
               <div className="pt-1">
                 <label className="text-[10px] font-bold text-slate-500 block mb-1">
                   Moyen de paiement
@@ -463,17 +489,15 @@ const SendParcelModal = ({ isOpen = true, onClose }) => {
 
             {/* BOUTONS D'ACTION */}
             <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={onClose}
+              <Link to="/"
                 className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors cursor-pointer uppercase tracking-wider"
               >
                 Annuler
-              </button>
+              </Link>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="px-6 py-2.5 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs rounded-xl shadow-lg shadow-orange-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer uppercase tracking-wider"
+                className="px-6 py-2.5 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs rounded-xl shadow-lg shadow-orange-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer uppercase tracking-wider disabled:opacity-50"
               >
                 {isSubmitting ? (
                   <>

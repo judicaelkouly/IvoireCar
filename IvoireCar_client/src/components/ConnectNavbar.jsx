@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Bus, User, LogOut, Ticket, Sparkles, LayoutDashboard, UserPlus, LogIn } from "lucide-react";
+import { Bus, User, LogOut, Ticket, LayoutDashboard, UserPlus, LogIn } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
@@ -32,6 +32,7 @@ function ConnectNavbar() {
     { name: "Compagnies", href: "#" },
     { name: "À Propos", href: "#" },
     { name: "Contact", href: "#" },
+    { name: "Expédition", href: "/expedition" },
   ];
 
   const userName = user?.name || user?.nom || "Utilisateur";
@@ -73,7 +74,7 @@ function ConnectNavbar() {
               className="group relative inline-flex items-center gap-2 bg-[#ea580c] hover:bg-orange-700 text-white text-base font-semibold px-5 py-2.5 rounded-xl shadow-lg shadow-orange-700/30 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
             >
               <span>Réserver un billet</span>
-              <Sparkles className="w-4 h-4" />
+              <Ticket className="w-4 h-4" />
             </Link>
 
             {/* SÉPARATEUR */}
@@ -225,7 +226,7 @@ function ConnectNavbar() {
                 className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-orange-600 to-amber-600 text-white text-sm font-semibold py-3 rounded-xl shadow-lg cursor-pointer"
               >
                 <span>Réserver mon ticket</span>
-                <Sparkles className="w-4 h-4" />
+                <Ticket className="w-4 h-4" />
               </Link>
 
               {user ? (

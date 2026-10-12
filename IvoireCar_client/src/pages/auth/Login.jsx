@@ -39,6 +39,15 @@ export default function Login() {
         case 'company_admin':
           navigate('/company');
           break;
+          case 'station_manager':
+          navigate('/company');
+          break;
+          case 'driver':
+          navigate('/company');
+          break;
+          case 'cashier':
+          navigate('/company');
+          break;
         default:
           navigate('/');
           break;
