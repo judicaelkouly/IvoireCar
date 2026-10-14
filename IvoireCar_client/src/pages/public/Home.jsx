@@ -1030,7 +1030,6 @@ export default function Home() {
             </div>
           </div>
         </section>
-
         {/* AVIS CLIENTS SECTION */}
         <section className="relative overflow-hidden bg-slate-950 py-16 text-white lg:py-24">
           <div className="absolute -right-32 -top-32 h-80 w-80 rounded-full bg-orange-600/20 blur-3xl" />
