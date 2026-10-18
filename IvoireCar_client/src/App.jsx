@@ -19,6 +19,7 @@ import AddVehicule from './pages/company/vehicules/AddVehicule';
 import AddDepart from './pages/company/departs/AddDepart';
 import UpdateDepart from './pages/company/departs/UpdateDepart';
 import AddCompany from './pages/admin/compagnies/AddCompany';
+import UpdateCompany from './pages/admin/compagnies/UpdateCompany';
 //import Profile from './pages/admin/profile/Profile';
 
 import AddRoute from './pages/company/lignes/AddRoute';
@@ -98,6 +99,7 @@ export default function App() {
             <Route path="/admin" element={<SuperAdminDashboard />} />
             <Route path="/admin/profile" element={<AdminProfile />} />
             <Route path="/admin/add-company" element={<AddCompany />} />
+            <Route path="/admin/update-company/:id" element={<UpdateCompany />} />
             <Route path="/admin/details/:id" element={<CompanyDetails />} />
 
             

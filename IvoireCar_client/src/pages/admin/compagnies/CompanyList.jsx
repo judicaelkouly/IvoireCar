@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Phone, Mail, ExternalLink, Building2, Search, Plus, Loader2 } from 'lucide-react';
+import { Phone, Mail, ExternalLink, Building2, Search, Plus, Loader2, Pencil } from 'lucide-react';
 import api from '../../../services/api'; // Importation de votre instance configurée avec session/cookie
 
 const CompanyList = ({ onSelectCompany }) => {
@@ -176,18 +176,27 @@ const CompanyList = ({ onSelectCompany }) => {
                   </div>
                 </div>
 
-               
-                {/* Pied de carte */}
-              <div className="p-3 bg-slate-50/50 border-t border-slate-100">
-                <Link
-                  to={`/admin/details/${company.id}`}
-                  onClick={(e) => e.stopPropagation()} // Empêche le déclenchement de l'événement onClick du conteneur parent
-                  className="w-full py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-2 shadow-sm transition-all group-hover:shadow-md group-hover:shadow-orange-600/20"
-                >
-                  <ExternalLink size={14} />
-                  Accéder aux détails
-                </Link>
-              </div>
+                {/* Pied de carte avec les actions (Détails & Mise à jour) */}
+                <div className="p-3 bg-slate-50/50 border-t border-slate-100 flex items-center gap-2">
+                  <Link
+                    to={`/admin/details/${company.id}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="flex-1 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 shadow-sm transition-all"
+                    title="Voir les détails"
+                  >
+                    <ExternalLink size={14} />
+                    <span>Détails</span>
+                  </Link>
+
+                  <Link
+                    to={`/admin/update-company/${company.id}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="p-2.5 bg-slate-200/80 hover:bg-orange-100 text-slate-700 hover:text-orange-600 rounded-xl text-xs font-semibold flex items-center justify-center transition-all"
+                    title="Mettre à jour la compagnie"
+                  >
+                    <Pencil size={15} />
+                  </Link>
+                </div>
 
               </div>
             );
